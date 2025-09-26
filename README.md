@@ -1,0 +1,2 @@
+# AllinSSL_plugins_qunhui
+AllinSSL插件，将AllinSSL的证书部署到群晖
