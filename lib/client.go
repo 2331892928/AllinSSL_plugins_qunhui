@@ -21,11 +21,20 @@ type Client struct {
 	Scheme   string
 	Host     string
 	Port     int64
-	auth     Auth // 用于存储登录后的认证信息
+	Timeout  int64 // 请求超时时间（秒），默认60秒
+	auth     Auth  // 用于存储登录后的认证信息
 }
 type SSL struct {
 	pem string
 	key string
+}
+
+// getTimeoutDuration 返回超时时间，默认60秒
+func (qunhuiClient *Client) getTimeoutDuration() time.Duration {
+	if qunhuiClient.Timeout > 0 {
+		return time.Duration(qunhuiClient.Timeout) * time.Second
+	}
+	return 60 * time.Second
 }
 type Auth struct {
 	account      string
@@ -125,7 +134,7 @@ type FileInfo struct {
 func (qunhuiClient *Client) Login() error {
 	// 创建自定义HTTP客户端
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: qunhuiClient.getTimeoutDuration(),
 		Transport: &http.Transport{
 			MaxIdleConns:    10,
 			MaxConnsPerHost: 10,
@@ -233,7 +242,7 @@ func (qunhuiClient *Client) Certificate(keyContent string, certContent string, i
 	header := map[string]string{
 		"Cookie": fmt.Sprintf("id=%s", qunhuiClient.auth.sid),
 	}
-	resp, err := uploadMultipleFilesAndParams(qunhuiUrl, files, reqParams, header)
+	resp, err := uploadMultipleFilesAndParams(qunhuiUrl, files, reqParams, header, qunhuiClient.getTimeoutDuration())
 	defer os.Remove(keyTempFile.Name()) // 确保临时文件会被删除
 	defer os.Remove(certTempFile.Name())
 	if err != nil {
@@ -279,7 +288,7 @@ func (qunhuiClient *Client) CrtList() (*CertificateResponse, error) {
 	req.Header.Set("X-SYNO-TOKEN", qunhuiClient.auth.synoToken)
 	// 发送请求
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: qunhuiClient.getTimeoutDuration(),
 		Transport: &http.Transport{
 			MaxIdleConns:    10,
 			MaxConnsPerHost: 10,
@@ -350,7 +359,7 @@ func CreateNamedTempFile(content, filename string) (*os.File, error) {
 }
 
 // 上传多个文件并发送参数
-func uploadMultipleFilesAndParams(qhurl string, files []FileInfo, params map[string]string, header map[string]string) ([]byte, error) {
+func uploadMultipleFilesAndParams(qhurl string, files []FileInfo, params map[string]string, header map[string]string, timeout time.Duration) ([]byte, error) {
 
 	// 创建一个缓冲区用于存储 multipart/form-data 数据
 	var requestBody bytes.Buffer
@@ -421,7 +430,7 @@ func uploadMultipleFilesAndParams(qhurl string, files []FileInfo, params map[str
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: timeout,
 		Transport: &http.Transport{
 			MaxIdleConns:    10,
 			MaxConnsPerHost: 10,

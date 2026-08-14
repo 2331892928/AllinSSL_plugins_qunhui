@@ -69,6 +69,21 @@ func deploy(cfg map[string]any) (*Response, error) {
 	default:
 		return nil, fmt.Errorf("AS_DEFAULT is required and must be a bool")
 	}
+
+	// 解析超时时间（可选，默认60秒）
+	var timeout int64 = 60
+	switch v := cfg["TIMEOUT"].(type) {
+	case float64:
+		timeout = int64(v)
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err == nil {
+			timeout = parsed
+		}
+	case int:
+		timeout = int64(v)
+	}
+
 	// 解析现有证书的域名
 	certObj, err := ParseCertificate([]byte(certPEM))
 	if err != nil {
@@ -80,6 +95,7 @@ func deploy(cfg map[string]any) (*Response, error) {
 		Port:     synoPort,
 		UserName: synoUsername,
 		Password: synoPassword,
+		Timeout:  timeout,
 	}
 	err = client.Login()
 	if err != nil {
